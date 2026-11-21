@@ -4,7 +4,7 @@ Use this walkthrough for lectures 18–21. Start both instrumented APIs and the 
 
 ## Generate enough traffic for the charts
 
-Run one checkout first and confirm it returns HTTP 200. For a repeatable graph, send requests for about a minute and look at the last five minutes. The following examples each start four local request loops.
+Run one checkout first and confirm it returns HTTP 200. For a repeatable graph, send requests for about a minute and look at the last five minutes. The following examples use Bash or PowerShell 7. Each starts four local request loops.
 
 ```sh
 for worker in 1 2 3 4; do
@@ -78,6 +78,8 @@ sum(rate(http_server_request_duration_seconds_count{
 ```
 
 ## Compare the panel with a trace
+
+Compose pins Jaeger to `2.20.0` so Grafana’s Jaeger data source can use the query API it expects.
 
 1. Open [Grafana](http://127.0.0.1:3000). The default credentials for this local instance are `admin` and `admin`. Follow the password prompt.
 2. Under **Connections**, add Prometheus with URL `http://prometheus:9090` and Jaeger with URL `http://jaeger:16686`. Run **Save & test** for both.
