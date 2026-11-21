@@ -1,0 +1,4 @@
+@host = http://127.0.0.1:5089
+
+GET {{host}}/checkout
+Accept: application/json
