@@ -12,6 +12,8 @@ Install the current stable [.NET 10 SDK](https://dotnet.microsoft.com/en-us/down
 
 ## Run the APIs
 
+Stop the single-API stack with `docker compose down` in that repo. Run `docker compose up -d` here, then start both APIs.
+
 ```sh
 # Terminal 1
 dotnet run --project Inventory.Api --launch-profile http
@@ -28,6 +30,13 @@ Start Jaeger with `docker compose up -d jaeger`. Restart both APIs with tracing 
 
 Expand `CallInventory` to see the HTTP client span and the Inventory server span in the same trace. `SaveOrderToDb` should account for about 600 ms. Inventory contributes about 150 ms plus HTTP overhead.
 
+## Metrics setup for lecture 17
+
+The video shows a prerelease exporter and one scrape target per API. In this repo, enable the Prometheus OTLP receiver with `--web.enable-otlp-receiver` in Compose. In both APIs use the metrics version of `AddOtlpExporter` with `OtlpExportProtocol.HttpProtobuf` and the full endpoint `http://127.0.0.1:9090/api/v1/otlp/v1/metrics`. Set the periodic export interval to 5000 milliseconds for the lab. Skip the scrape targets and the `AddPrometheusExporter` and `MapPrometheusScrapingEndpoint` calls in the video.
+
+Run `docker compose up -d` and restart both APIs. Send several checkout requests and open [Prometheus](http://127.0.0.1:9090). Run `http_server_request_duration_seconds_count{job=~"Orders[.]Api|Inventory[.]Api"}` to confirm that both jobs have request metrics. Verify the API series in the query view. The Targets page shows scrape health.
+
+[Generate traffic, run PromQL and set up Grafana](OBSERVABILITY.md). When you finish, run `docker compose down`.
 
 
 See [the course index](https://github.com/trevoirwilliams/oteldemo.ecommerce#checkpoints) for intermediate lesson checkpoints. To compare without changing your working branch, open the checkpoint on GitHub.

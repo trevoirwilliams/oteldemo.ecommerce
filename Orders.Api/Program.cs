@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using OpenTelemetry.Exporter;
+using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
@@ -36,6 +37,17 @@ builder.Services.AddOpenTelemetry()
             options.Protocol = OtlpExportProtocol.Grpc;
             options.Endpoint = new Uri(builder.Configuration["Telemetry:TracesEndpoint"]
                 ?? "http://127.0.0.1:4317");
+        }))
+    .WithMetrics(metrics => metrics
+        .AddAspNetCoreInstrumentation()
+        .AddHttpClientInstrumentation()
+        .AddRuntimeInstrumentation()
+        .AddOtlpExporter((options, reader) =>
+        {
+            options.Protocol = OtlpExportProtocol.HttpProtobuf;
+            options.Endpoint = new Uri(builder.Configuration["Telemetry:MetricsEndpoint"]
+                ?? "http://127.0.0.1:9090/api/v1/otlp/v1/metrics");
+            reader.PeriodicExportingMetricReaderOptions.ExportIntervalMilliseconds = 5000;
         }));
 
 var app = builder.Build();
