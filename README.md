@@ -22,4 +22,12 @@ dotnet run --project Orders.Api --launch-profile http
 
 Send `GET http://127.0.0.1:5089/checkout`. It calls `GET http://127.0.0.1:5090/inventory/reserve` before returning the checkout response. Use the request files in each project to try both endpoints.
 
+## Check the checkout trace
+
+Start Jaeger with `docker compose up -d jaeger`. Restart both APIs with tracing configured, then send `GET /checkout`. In [Jaeger](http://127.0.0.1:16686), search for service `Orders.Api` and set the minimum duration to `500ms`. Select the `GET /checkout` operation if you want to narrow the search. The recorded code may show `ProcessCheckout` as the operation name.
+
+Expand `CallInventory` to see the HTTP client span and the Inventory server span in the same trace. `SaveOrderToDb` should account for about 600 ms. Inventory contributes about 150 ms plus HTTP overhead.
+
+
+
 See [the course index](https://github.com/trevoirwilliams/oteldemo.ecommerce#checkpoints) for intermediate lesson checkpoints. To compare without changing your working branch, open the checkpoint on GitHub.

@@ -1,3 +1,8 @@
+using System.Diagnostics;
+using OpenTelemetry.Exporter;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
+
 var builder = WebApplication.CreateBuilder(args);
 
 var inventoryUrl = builder.Configuration["Inventory:BaseUrl"] ?? "http://127.0.0.1:5090";
@@ -17,6 +22,22 @@ if (maxConnections is > 0)
 
 var saveDelayMs = builder.Configuration.GetValue("Checkout:SaveDelayMs", 600);
 
+const string activitySourceName = "Orders.Api";
+using var activitySource = new ActivitySource(activitySourceName);
+
+builder.Services.AddOpenTelemetry()
+    .ConfigureResource(resource => resource.AddService("Orders.Api"))
+    .WithTracing(tracing => tracing
+        .AddAspNetCoreInstrumentation(options => options.RecordException = true)
+        .AddHttpClientInstrumentation()
+        .AddSource(activitySourceName)
+        .AddOtlpExporter(options =>
+        {
+            options.Protocol = OtlpExportProtocol.Grpc;
+            options.Endpoint = new Uri(builder.Configuration["Telemetry:TracesEndpoint"]
+                ?? "http://127.0.0.1:4317");
+        }));
+
 var app = builder.Build();
 
 app.MapGet("/checkout", async (IHttpClientFactory httpClientFactory, CancellationToken cancellationToken) =>
@@ -24,14 +45,23 @@ app.MapGet("/checkout", async (IHttpClientFactory httpClientFactory, Cancellatio
     const string userTier = "gold";
     const decimal orderTotal = 129.99m;
 
+    Activity.Current?.SetTag("user.tier", userTier);
+    Activity.Current?.SetTag("order.total", (double)orderTotal);
+
     var client = httpClientFactory.CreateClient("inventory");
-    using (var response = await client.GetAsync("/inventory/reserve", cancellationToken))
+    using (activitySource.StartActivity("CallInventory"))
     {
+        using var response = await client.GetAsync("/inventory/reserve", cancellationToken);
         response.EnsureSuccessStatusCode();
     }
 
-    // This delay represents a database save in the checkout exercise.
-    await Task.Delay(saveDelayMs, cancellationToken);
+    using (var saveActivity = activitySource.StartActivity("SaveOrderToDb"))
+    {
+        saveActivity?.SetTag("db.system.name", "postgresql");
+        saveActivity?.SetTag("db.operation.name", "INSERT");
+        // This delay represents a database save in the checkout exercise.
+        await Task.Delay(saveDelayMs, cancellationToken);
+    }
 
     return Results.Ok(new
     {
